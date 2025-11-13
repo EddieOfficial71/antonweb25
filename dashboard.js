@@ -234,10 +234,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             modal.innerHTML = `
                 <div style="background:#fff;padding:18px;border-radius:8px;max-width:520px;width:92%;box-shadow:0 8px 24px rgba(0,0,0,0.2);font-family:inherit;">
                     <h3 style="margin-top:0">Popup Blocked</h3>
-                    <p>It looks like your browser blocked opening a new window. You can open the app manually, search for it via Google, or allow popups for this site.</p>
+                    <p>It looks like your browser blocked opening a new window. You can open the app manually, search for it via Google, run a diagnostic to help IT, or allow popups for this site.</p>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;">
                         <button id="pbOpenSameBtn" style="background:#007bff;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">Open Here</button>
                         <button id="pbGoogleBtn" style="background:#0b66c3;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">Search via Google</button>
+                        <button id="pbDiagBtn" style="background:#17a2b8;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">Diagnose</button>
                         <button id="pbCopyBtn" style="background:#6c757d;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">Copy Link</button>
                         <button id="pbCloseBtn" style="background:transparent;border:1px solid #ccc;padding:8px 12px;border-radius:4px;cursor:pointer">Close</button>
                     </div>
@@ -256,6 +257,57 @@ document.addEventListener('DOMContentLoaded', async function() {
                     alert('Link copied to clipboard');
                 } catch (e) {
                     prompt('Copy this link:', link);
+                }
+            });
+
+            // Diagnose handler: ask server to fetch headers/status to explain blocking
+            document.getElementById('pbDiagBtn').addEventListener('click', async () => {
+                const link = document.getElementById('pbOpenSameBtn').dataset.url || url;
+                const modalRoot = modal.querySelector('div');
+                try {
+                    modalRoot.innerHTML = '<div style="padding:18px;font-family:inherit;"><h3>Diagnosing...</h3><p>Please wait while we check the target site headers and response status.</p></div>';
+
+                    const resp = await fetch('/api/diagnose?url=' + encodeURIComponent(link));
+                    const data = await resp.json();
+                    const diagnosisText = JSON.stringify(data, null, 2);
+                    const userAgent = navigator.userAgent;
+                    const timestamp = new Date().toISOString();
+
+                    modalRoot.innerHTML = `
+                        <div style="padding:18px;font-family:inherit;max-height:72vh;overflow:auto;">
+                            <h3 style="margin-top:0">Diagnosis Results</h3>
+                            <pre style="background:#f4f4f4;border:1px solid #e1e1e1;padding:12px;border-radius:6px;white-space:pre-wrap;">${diagnosisText}</pre>
+                            <p style="color:#444">If this site refuses to be embedded it commonly sets <code>X-Frame-Options</code> or a restrictive <code>Content-Security-Policy</code>. Use the button below to copy a prepared message for your IT/filters team.</p>
+                            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;">
+                                <button id="pbCopyRequest" style="background:#28a745;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">Copy Whitelist Request</button>
+                                <button id="pbBackBtn" style="background:#6c757d;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">Back</button>
+                                <button id="pbCloseNow" style="background:transparent;border:1px solid #ccc;padding:8px 12px;border-radius:4px;cursor:pointer">Close</button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('pbCopyRequest').addEventListener('click', async () => {
+                        const message = `Hello IT team,\n\nI'm requesting that the following URL be reviewed/whitelisted so it can be used in our browser without blocking.\n\nURL: ${link}\nTimestamp: ${timestamp}\nUser Agent: ${userAgent}\n\nDiagnosis (server-side):\n${diagnosisText}\n\nPlease let me know if you need further details or logs.`;
+                        try {
+                            await navigator.clipboard.writeText(message);
+                            alert('Whitelist request copied to clipboard. Paste it into your ticket or email.');
+                        } catch (err) {
+                            prompt('Copy whitelist request:', message);
+                        }
+                    });
+
+                    document.getElementById('pbBackBtn').addEventListener('click', () => {
+                        modal.style.display = 'none';
+                        setTimeout(() => { modal.style.display = 'flex'; }, 50);
+                        modal.remove();
+                        showPopupBlockedModal(link);
+                    });
+
+                    document.getElementById('pbCloseNow').addEventListener('click', () => { modal.style.display = 'none'; });
+
+                } catch (err) {
+                    console.error('Diagnosis failed', err);
+                    alert('Diagnosis failed: ' + (err && err.message ? err.message : String(err)));
                 }
             });
         }

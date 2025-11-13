@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 
@@ -539,6 +540,49 @@ app.get('/api/search/google', async (req, res) => {
             url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
             redirect: true
         });
+    }
+});
+
+// Diagnostic endpoint to check why a site may be blocked or refuse embedding
+app.get('/api/diagnose', async (req, res) => {
+    const target = req.query.url;
+    if (!target) return res.status(400).json({ error: 'Missing url query parameter' });
+
+    try {
+        // Try a HEAD request first to get headers quickly
+        let response;
+        try {
+            response = await fetch(target, { method: 'HEAD', redirect: 'follow', timeout: 8000 });
+        } catch (headErr) {
+            // Some servers don't respond to HEAD; fall back to GET
+            response = await fetch(target, { method: 'GET', redirect: 'follow', timeout: 8000 });
+        }
+
+        const headers = {};
+        // Collect some headers that commonly affect embedding
+        const hdrs = response.headers.raw ? response.headers.raw() : {};
+        // Normalize keys to lowercase
+        Object.keys(hdrs).forEach(k => {
+            try { headers[k.toLowerCase()] = Array.isArray(hdrs[k]) ? hdrs[k].join('; ') : String(hdrs[k]); } catch (e) {}
+        });
+
+        const useful = {
+            url: target,
+            status: response.status,
+            statusText: response.statusText,
+            headers: {
+                'x-frame-options': headers['x-frame-options'] || null,
+                'content-security-policy': headers['content-security-policy'] || null,
+                'strict-transport-security': headers['strict-transport-security'] || null,
+                'server': headers['server'] || null,
+                'via': headers['via'] || null
+            }
+        };
+
+        res.json({ ok: true, diagnosis: useful });
+    } catch (err) {
+        console.error('Diagnose error for', target, err && err.message);
+        res.json({ ok: false, error: String(err && err.message ? err.message : err) });
     }
 });
 
