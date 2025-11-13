@@ -107,17 +107,24 @@ async function loadMessages() {
         });
 
         if (response.ok) {
-            const data = await response.json();
-            renderMessages(data.messages);
+            async function safeJson(res) {
+                const text = await res.text();
+                if (!text) return null;
+                try { return JSON.parse(text); } catch (e) { return null; }
+            }
+
+            const data = await safeJson(response);
+            const messages = (data && data.messages) || [];
+            renderMessages(messages);
 
             // Check for new messages and notify
-            if (data.newMessages && data.newMessages.length > 0 && !chatOpen) {
+            if (data && data.newMessages && data.newMessages.length > 0 && !chatOpen) {
                 handleNewMessages(data.newMessages);
             }
 
             // Update last message ID
-            if (data.messages.length > 0) {
-                lastMessageId = data.messages[data.messages.length - 1].id;
+            if (messages.length > 0) {
+                lastMessageId = messages[messages.length - 1].id;
             }
         }
     } catch (error) {

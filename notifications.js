@@ -183,8 +183,15 @@ async function pollBroadcasts() {
         if (!token) return;
         const res = await fetch('/api/broadcasts?since=' + _lastBroadcastId, { headers: { 'Authorization': 'Bearer ' + token } });
         if (!res.ok) return;
-        const data = await res.json();
-        if (data.newBroadcasts && data.newBroadcasts.length) {
+
+        async function safeJson(res) {
+            const text = await res.text();
+            if (!text) return null;
+            try { return JSON.parse(text); } catch (e) { return null; }
+        }
+
+        const data = await safeJson(res);
+        if (data && data.newBroadcasts && data.newBroadcasts.length) {
             data.newBroadcasts.forEach(b => {
                 try { updateNotifier.show([{ icon: '📣', text: b.message }], 5000); } catch (e) {}
                 _lastBroadcastId = Math.max(_lastBroadcastId, b.id);

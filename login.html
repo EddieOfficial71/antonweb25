@@ -42,18 +42,25 @@
                     body: JSON.stringify({ username, password })
                 });
 
-                const data = await response.json();
+                // safe JSON parsing to avoid "Unexpected end of JSON input"
+                async function safeJson(res) {
+                    const text = await res.text();
+                    if (!text) return null;
+                    try { return JSON.parse(text); } catch (e) { return null; }
+                }
+
+                const data = await safeJson(response);
 
                 if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('username', data.username);
-                    localStorage.setItem('isPremium', data.isPremium);
-                    notifyLoginSuccess(data.username);
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1500);
+                    if (data && data.token) {
+                        localStorage.setItem('token', data.token);
+                    }
+                    localStorage.setItem('username', username);
+                    localStorage.setItem('isPremium', data && data.isPremium);
+                    notifyLoginSuccess(username);
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
                 } else {
-                    alert(data.message || 'Login failed');
+                    alert((data && data.message) || 'Login failed');
                 }
             } catch (error) {
                 alert('Error: ' + error.message);

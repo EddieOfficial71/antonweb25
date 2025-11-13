@@ -41,8 +41,14 @@
       try {
         const res = await fetch('/api/broadcasts?since=' + lastId, { headers: { 'Authorization': 'Bearer ' + token } });
         if (res.ok) {
-          const data = await res.json();
-          if (data.newBroadcasts && data.newBroadcasts.length) {
+          async function safeJson(res) {
+            const text = await res.text();
+            if (!text) return null;
+            try { return JSON.parse(text); } catch (e) { return null; }
+          }
+
+          const data = await safeJson(res);
+          if (data && data.newBroadcasts && data.newBroadcasts.length) {
             updateMonitorList(data.newBroadcasts);
           }
         }

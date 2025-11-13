@@ -41,8 +41,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
             
             if (response.ok) {
-                const data = await response.json();
-                return data.isPremium;
+                async function safeJson(res) {
+                    const text = await res.text();
+                    if (!text) return null;
+                    try { return JSON.parse(text); } catch (e) { return null; }
+                }
+
+                const data = await safeJson(response);
+                return data && data.isPremium;
             }
         } catch (error) {
             console.error('Error checking premium status:', error);

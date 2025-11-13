@@ -16,10 +16,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             const response = await fetch('/api/admin/users', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await response.json();
+
+            async function safeJson(res) {
+                const text = await res.text();
+                if (!text) return null;
+                try { return JSON.parse(text); } catch (e) { return null; }
+            }
+
+            const data = await safeJson(response);
 
             if (response.ok) {
-                displayUsers(data.users);
+                displayUsers((data && data.users) || []);
             }
         } catch (error) {
             console.error('Error loading users:', error);
@@ -32,10 +39,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             const response = await fetch('/api/admin/payments', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await response.json();
+
+            async function safeJson(res) {
+                const text = await res.text();
+                if (!text) return null;
+                try { return JSON.parse(text); } catch (e) { return null; }
+            }
+
+            const data = await safeJson(response);
 
             if (response.ok) {
-                displayPayments(data.payments);
+                displayPayments((data && data.payments) || []);
             }
         } catch (error) {
             console.error('Error loading payments:', error);

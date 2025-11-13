@@ -164,14 +164,20 @@ async function handleStripePayment(e) {
             })
         });
 
-        const data = await response.json();
+        async function safeJson(res) {
+            const text = await res.text();
+            if (!text) return null;
+            try { return JSON.parse(text); } catch (e) { return null; }
+        }
 
-        if (response.ok && data.success) {
+        const data = await safeJson(response);
+
+        if (response.ok && data && data.success) {
             // Payment successful
             document.getElementById('stripeModal').style.display = 'none';
             showSuccessModal('Premium Activated!', 'Your payment has been processed. Premium access is now active!');
         } else {
-            errorDiv.textContent = data.message || 'Payment failed. Please try again.';
+            errorDiv.textContent = (data && data.message) || 'Payment failed. Please try again.';
             payBtn.disabled = false;
             payBtn.textContent = 'Pay $15.00';
         }
