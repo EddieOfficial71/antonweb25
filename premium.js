@@ -106,15 +106,25 @@ async function handleCashPayment() {
             })
         });
 
+        async function safeJson(res) {
+            const text = await res.text();
+            if (!text) return null;
+            try { return JSON.parse(text); } catch (e) { return null; }
+        }
+
+        const data = await safeJson(response);
+
         if (response.ok) {
             document.getElementById('cashConfirmModal').style.display = 'none';
             showSuccessModal('Payment Pending', 'Your payment is pending. Once Anton confirms receipt of the $15 cash payment, you will receive premium access.');
         } else {
-            alert('Error processing cash payment request');
+            const errorMsg = (data && data.message) || 'Error processing cash payment request';
+            alert(errorMsg);
+            console.error('Cash payment error:', data || response.status);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error processing payment');
+        alert('Error processing payment: ' + error.message);
     }
 }
 

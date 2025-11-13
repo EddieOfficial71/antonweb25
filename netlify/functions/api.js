@@ -4,12 +4,15 @@
 const fs = require('fs');
 const path = require('path');
 
-// File storage paths (Netlify temp dir)
-const dataDir = '/tmp';
-const usersFile = path.join(dataDir, 'users.json');
-const messagesFile = path.join(dataDir, 'messages.json');
-const paymentsFile = path.join(dataDir, 'payments.json');
-const broadcastsFile = path.join(dataDir, 'broadcasts.json');
+// File storage paths - use project .netlify directory which persists
+// Note: On Netlify, use environment or database for true persistence
+// This stores in memory per function invocation; for production, use Firestore/MongoDB
+const os = require('os');
+const dataDir = process.env.NETLIFY ? os.tmpdir() : path.join(__dirname, '../../');
+const usersFile = path.join(dataDir, '.netlify-users.json');
+const messagesFile = path.join(dataDir, '.netlify-messages.json');
+const paymentsFile = path.join(dataDir, '.netlify-payments.json');
+const broadcastsFile = path.join(dataDir, '.netlify-broadcasts.json');
 
 let users = [];
 let messages = [];
@@ -383,6 +386,12 @@ const routes = {
 
 // Main handler
 exports.handler = async (event, context) => {
+    // Reload all data at the start of each invocation (Netlify doesn't persist memory)
+    loadUsers();
+    loadMessages();
+    loadPayments();
+    loadBroadcasts();
+
     const method = event.httpMethod;
     const path = event.path;
     
