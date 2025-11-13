@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Diagnostic</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        .test-container h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .result {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 12px;
+        }
+        .success { border-left-color: #28a745; color: #28a745; }
+        .error { border-left-color: #dc3545; color: #dc3545; }
+        .warning { border-left-color: #ffc107; color: #ffc107; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>API Diagnostic Test</h1>
+    <p>This page tests if your backend API is reachable and returns JSON.</p>
+
+    <div class="test-container">
+        <h3>1. Test Backend Health</h3>
+        <button onclick="testRoot()">Test GET /</button>
+        <div id="test-root-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>2. Test Login Endpoint (no credentials)</h3>
+        <button onclick="testLoginEndpoint()">Test POST /api/auth/login</button>
+        <div id="test-login-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>3. Test Unmatched API Route (should return JSON 404)</h3>
+        <button onclick="testNotFound()">Test GET /api/nonexistent</button>
+        <div id="test-notfound-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>4. Test Signup Endpoint (no credentials)</h3>
+        <button onclick="testSignupEndpoint()">Test POST /api/auth/signup</button>
+        <div id="test-signup-result"></div>
+    </div>
+
+    <script>
+        async function testEndpoint(method, path, body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (body) options.body = JSON.stringify(body);
+
+                console.log(`[${method}] ${path}`, body || '');
+                const response = await fetch(path, options);
+                
+                const text = await response.text();
+                let data = null;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = { _RAW_TEXT: text };
+                }
+
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    contentType: response.headers.get('content-type'),
+                    body: data,
+                    isJSON: response.headers.get('content-type')?.includes('application/json'),
+                    rawText: text.substring(0, 500)
+                };
+            } catch (error) {
+                return {
+                    error: error.message,
+                    note: 'Backend may be offline or CORS is blocked'
+                };
+            }
+        }
+
+        function displayResult(elementId, result) {
+            const el = document.getElementById(elementId);
+            let html = '';
+            
+            if (result.error) {
+                html = `<div class="result error">❌ Error: ${result.error}\n${result.note || ''}</div>`;
+            } else {
+                const isSuccess = result.status >= 200 && result.status < 300;
+                const className = isSuccess ? 'success' : (result.status >= 400 ? 'error' : 'warning');
+                const icon = isSuccess ? '✅' : (result.status >= 400 ? '❌' : '⚠️');
+                
+                html = `
+                    <div class="result ${className}">
+${icon} Status: ${result.status} ${result.statusText}
+Content-Type: ${result.contentType || 'not set'}
+Is JSON: ${result.isJSON ? 'Yes ✓' : 'No ✗'}
+
+Body:
+${JSON.stringify(result.body, null, 2)}
+                    </div>
+                `;
+            }
+            
+            el.innerHTML = html;
+        }
+
+        async function testRoot() {
+            const result = await testEndpoint('GET', '/');
+            displayResult('test-root-result', result);
+        }
+
+        async function testLoginEndpoint() {
+            const result = await testEndpoint('POST', '/api/auth/login', { username: '', password: '' });
+            displayResult('test-login-result', result);
+        }
+
+        async function testNotFound() {
+            const result = await testEndpoint('GET', '/api/nonexistent');
+            displayResult('test-notfound-result', result);
+        }
+
+        async function testSignupEndpoint() {
+            const result = await testEndpoint('POST', '/api/auth/signup', { username: '', password: '', email: '' });
+            displayResult('test-signup-result', result);
+        }
+
+        window.addEventListener('load', () => {
+            console.log('API Diagnostic Tool Ready');
+            console.log('Current URL:', window.location.href);
+            console.log('Frontend Host:', window.location.host);
+            console.log('API will be called from same origin unless Cross-Origin is configured');
+        });
+    </script>
+</body>
+</html>
