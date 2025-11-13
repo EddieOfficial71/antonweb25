@@ -5,19 +5,36 @@ const fs = require('fs');
 const path = require('path');
 
 // ⚠️ CRITICAL: Netlify Functions filesystem persistence issue
-// Each function invocation gets:
-// - Fresh /tmp directory (ephemeral - data lost)
-// - Deployed files are READ-ONLY (can't write)
-//
-// CURRENT WORKAROUND: Use /tmp within a single invocation,
-// but understand data won't persist between invocations
-//
-// PERMANENT SOLUTION (REQUIRED FOR PRODUCTION):
-// Set up Firebase Firestore by:
-// 1. Creating a Firebase project at console.firebase.google.com
-// 2. Generating a service account key (Project Settings > Service Accounts)
-// 3. Setting FIREBASE_CREDENTIALS env var in Netlify Dashboard
-// 4. Uncommenting the Firestore code in netlify/functions/firestore-db.js
+// Use data-adapter which supports both file-based and Firebase Firestore
+// To enable Firebase: Set FIREBASE_CREDENTIALS in Netlify environment variables
+
+// Import data adapter for persistent storage
+let db = null;
+let DBAdapter = null;
+
+try {
+    DBAdapter = require('./data-adapter.js');
+} catch (e) {
+    console.warn('[Netlify] data-adapter not available, using file-based storage');
+}
+
+let users = [];
+let messages = [];
+let paymentNotifications = [];
+let broadcasts = [];
+
+// Initialize data adapter
+async function initDB() {
+    if (db) return db;
+    if (DBAdapter) {
+        db = new DBAdapter();
+        await db.init();
+        console.log('[Netlify] Using persistent data adapter');
+        return db;
+    }
+    // Fallback to file-based if no adapter
+    return null;
+}
 
 // Use volatile storage that at least works during testing
 // Each request will re-load data from /tmp (fresh but empty)
@@ -30,13 +47,19 @@ const messagesFile = path.join(tempDir, 'netlify-data-messages.json');
 const paymentsFile = path.join(tempDir, 'netlify-data-payments.json');
 const broadcastsFile = path.join(tempDir, 'netlify-data-broadcasts.json');
 
-let users = [];
-let messages = [];
-let paymentNotifications = [];
-let broadcasts = [];
-
 // Load all data on startup
-function loadUsers() {
+async function loadUsers() {
+    try {
+        const adapter = await initDB();
+        if (adapter && adapter.loadUsers) {
+            users = await adapter.loadUsers() || [];
+            console.log(`[Netlify] Loaded ${users.length} users from adapter`);
+            return;
+        }
+    } catch (e) {
+        console.warn('[Netlify] Adapter load failed, using file-based:', e.message);
+    }
+    
     try {
         if (fs.existsSync(usersFile)) {
             const data = fs.readFileSync(usersFile, 'utf8');
@@ -51,7 +74,18 @@ function loadUsers() {
     }
 }
 
-function saveUsers() {
+async function saveUsers() {
+    try {
+        const adapter = await initDB();
+        if (adapter && adapter.saveUsers) {
+            await adapter.saveUsers(users);
+            console.log(`[Netlify] Saved ${users.length} users to adapter`);
+            return;
+        }
+    } catch (e) {
+        console.warn('[Netlify] Adapter save failed, using file-based:', e.message);
+    }
+    
     try {
         fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
         console.log(`[Netlify] Saved ${users.length} users to ${usersFile}`);
@@ -435,7 +469,7 @@ const routes = {
 // Main handler
 exports.handler = async (event, context) => {
     // Reload all data at the start of each invocation (Netlify doesn't persist memory)
-    loadUsers();
+    await loadUsers();
     loadMessages();
     loadPayments();
     loadBroadcasts();
