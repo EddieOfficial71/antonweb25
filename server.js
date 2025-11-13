@@ -486,6 +486,62 @@ app.use((req, res) => {
     res.status(404).send('<!DOCTYPE html><html><body><h1>404 Not Found</h1><p>File not found: ' + req.path + '</p></body></html>');
 });
 
+// Google Custom Search API endpoint
+app.get('/api/search/google', async (req, res) => {
+    const query = req.query.q;
+    if (!query) {
+        return res.status(400).json({ error: 'Missing query parameter' });
+    }
+
+    try {
+        // For now, redirect to Google search - you can replace this with Custom Search API
+        // To use Custom Search API, you'll need:
+        // 1. Get a Google API Key from https://console.cloud.google.com
+        // 2. Create a Custom Search Engine at https://programmablesearchengine.google.com
+        // 3. Add GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID to your environment variables
+        
+        const apiKey = process.env.GOOGLE_API_KEY;
+        const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+        
+        if (!apiKey || !searchEngineId) {
+            // Fallback to direct Google search if API not configured
+            return res.json({
+                url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                redirect: true
+            });
+        }
+
+        // Use Google Custom Search API
+        const fetch = require('node-fetch');
+        const apiUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&key=${apiKey}&cx=${searchEngineId}`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.items) {
+            res.json({
+                results: data.items.map(item => ({
+                    title: item.title,
+                    url: item.link,
+                    snippet: item.snippet
+                })),
+                redirect: false
+            });
+        } else {
+            res.json({
+                url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                redirect: true
+            });
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        res.json({
+            url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+            redirect: true
+        });
+    }
+});
+
 // Error handling middleware - always return JSON for /api errors
 app.use((err, req, res, next) => {
     console.error('Error:', err);

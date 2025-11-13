@@ -17,8 +17,17 @@ for = "/api/*"
 "Content-Type" = "application/json"
 "Access-Control-Allow-Origin" = "*"
 
-# Environment variables needed for persistent storage:
+# Environment variables needed for persistent storage and Google Search:
 # FIREBASE_CREDENTIALS: JSON service account key from Firebase
+# GOOGLE_API_KEY: Your Google API key for Custom Search
+# GOOGLE_SEARCH_ENGINE_ID: Your Custom Search Engine ID
 # 
 # Without these, data will NOT persist between function invocations
 # See: NETLIFY_PERSISTENCE.md and netlify/setup-firebase.js
+
+# To add these in Netlify:
+# 1. Go to your Netlify site dashboard
+# 2. Click "Site Settings"
+# 3. Click "Build & Deploy" > "Environment"
+# 4. Click "Edit Variables"
+# 5. Add each variable with its value
