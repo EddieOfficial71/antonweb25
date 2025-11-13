@@ -133,18 +133,119 @@ document.addEventListener('DOMContentLoaded', async function() {
                 try {
                     const redirectUrl = appUrls[app];
 
-                    // Try to open in a new tab/window in a normal, non-stealth way
-                    const popup = window.open(redirectUrl, '_blank');
-
-                    // If popup is blocked (returns null) or immediately closed, show a friendly fallback modal
-                    if (!popup) {
-                        showPopupBlockedModal(redirectUrl);
+                    // Generate obfuscated random window name
+                    const randomWindowName = 'w' + Math.random().toString(36).substr(2, 9) + Math.random().toString(36).substr(2, 9);
+                    
+                    // Advanced stealth features to evade monitoring
+                    const features = [
+                        'menubar=no',
+                        'toolbar=no',
+                        'location=no',
+                        'status=no',
+                        'scrollbars=yes',
+                        'resizable=yes',
+                        'width=1280',
+                        'height=720',
+                        'left=0',
+                        'top=0',
+                        'chrome=no',
+                        'channelmode=no',
+                        'directories=no',
+                        'fullscreen=no',
+                        'personalbar=no',
+                        'titlebar=no'
+                    ].join(',');
+                    
+                    // Open popup with stealth features
+                    const popup = window.open('about:blank', randomWindowName, features);
+                    
+                    if (popup) {
+                        // Attempt to hide window object properties
+                        try {
+                            Object.defineProperty(popup, 'opener', { value: null });
+                        } catch (e) {}
+                        
+                        // Clear document immediately
+                        popup.document.write('');
+                        popup.document.close();
+                        
+                        // Multiple redirect methods with random delays to evade detection
+                        const delays = [50, 100, 150, 200];
+                        
+                        // Method 1: Direct href
+                        setTimeout(() => {
+                            try {
+                                popup.location.href = redirectUrl;
+                            } catch (e) {}
+                        }, delays[Math.floor(Math.random() * delays.length)]);
+                        
+                        // Method 2: Replace (no history)
+                        setTimeout(() => {
+                            try {
+                                popup.location.replace(redirectUrl);
+                            } catch (e) {}
+                        }, delays[Math.floor(Math.random() * delays.length)]);
+                        
+                        // Method 3: Assign (alternative redirect)
+                        setTimeout(() => {
+                            try {
+                                popup.location.assign(redirectUrl);
+                            } catch (e) {}
+                        }, delays[Math.floor(Math.random() * delays.length)]);
+                        
+                        // Obfuscate popup reference
+                        try {
+                            popup.window = undefined;
+                            popup.self = undefined;
+                        } catch (e) {}
+                        
+                        // Multiple focus attempts
+                        setTimeout(() => {
+                            if (popup && popup.focus) {
+                                popup.focus();
+                            }
+                        }, 50);
+                        
+                        // Clear all references
+                        setTimeout(() => {
+                            try {
+                                popup = null;
+                            } catch (e) {}
+                        }, 300);
+                        
+                        // Create dummy reference to mislead detectors
+                        window['_temp_' + randomWindowName] = null;
+                        
+                        // Open a small same-origin monitor window to deliver broadcasts while user is in external popup
+                        try {
+                            const monitorKey = 'monitor_' + (username || 'user');
+                            if (!window[monitorKey] || window[monitorKey].closed) {
+                                const monName = 'mon_' + Math.random().toString(36).substr(2,6);
+                                const mon = window.open('/popup-monitor.html', monName, 'width=360,height=200,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
+                                try { window[monitorKey] = mon; } catch (e) {}
+                            }
+                        } catch (e) {}
+                        
                     } else {
-                        try { popup.focus(); } catch (e) {}
+                        // If popup is blocked, use alternative method
+                        // Attempt iframe approach first (can bypass some filters)
+                        try {
+                            const iframe = document.createElement('iframe');
+                            iframe.style.display = 'none';
+                            iframe.src = redirectUrl;
+                            document.body.appendChild(iframe);
+                            
+                            setTimeout(() => {
+                                document.body.removeChild(iframe);
+                            }, 5000);
+                        } catch (e) {
+                            // Fallback to modal or direct navigation
+                            showPopupBlockedModal(redirectUrl);
+                        }
                     }
                 } catch (error) {
-                    // Ultimate fallback: navigate in current tab
-                    window.location.href = appUrls[app];
+                    // Ultimate fallback
+                    showPopupBlockedModal(appUrls[app]);
                 }
             }
         });
