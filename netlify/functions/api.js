@@ -246,17 +246,28 @@ const routes = {
     'POST /api/admin/grant-premium': (req) => {
         const token = req.headers.authorization?.split(' ')[1];
         const username = verifyToken(token);
+        console.log(`[Grant Premium] Username from token: ${username}`);
+        
         if (username !== 'Anton') {
-            return { status: 403, body: { message: 'Access denied' } };
+            console.log(`[Grant Premium] Access denied for user: ${username}`);
+            return { status: 403, body: { message: 'Access denied - only Anton can grant premium' } };
         }
+        
         const { username: targetUsername } = req.body;
+        console.log(`[Grant Premium] Looking for user: ${targetUsername}`);
+        console.log(`[Grant Premium] Total users in memory: ${users.length}`);
+        
         const user = users.find(u => u.username === targetUsername);
         if (!user) {
-            return { status: 404, body: { message: 'User not found' } };
+            console.log(`[Grant Premium] User not found: ${targetUsername}`);
+            return { status: 404, body: { message: 'User not found: ' + targetUsername } };
         }
+        
+        console.log(`[Grant Premium] Found user, setting isPremium = true`);
         user.isPremium = true;
         saveUsers();
-        return { status: 200, body: { message: 'Premium granted' } };
+        console.log(`[Grant Premium] Successfully granted premium to ${targetUsername}`);
+        return { status: 200, body: { message: 'Premium granted to ' + targetUsername } };
     },
 
     'POST /api/admin/remove-premium': (req) => {

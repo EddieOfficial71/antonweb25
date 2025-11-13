@@ -169,15 +169,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                 body: JSON.stringify({ username: targetUsername })
             });
 
+            const data = await response.json();
+            
             if (response.ok) {
                 notifyPremiumGranted(targetUsername);
                 document.getElementById('premiumUsername').value = '';
                 loadUsers();
+                alert('Premium granted to ' + targetUsername);
             } else {
-                alert('Error granting premium');
+                alert('Error: ' + (data.message || 'Failed to grant premium'));
+                console.error('Grant premium error:', data);
             }
         } catch (error) {
             console.error('Error:', error);
+            alert('Error granting premium: ' + error.message);
         }
     });
 
