@@ -2,10 +2,9 @@
   "name": "searchhub",
   "version": "1.0.0",
   "description": "A modern, elegant search engine website that allows you to search across multiple search engines and websites from a single interface.",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "local-start": "node server.js",
+    "local-dev": "node server.js",
     "build": "node build.js",
     "verify": "echo 'Verification passed'",
     "test": "node verify-deployment.js"
