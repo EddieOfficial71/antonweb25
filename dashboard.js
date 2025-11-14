@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const username = localStorage.getItem('username');
     const token = localStorage.getItem('token');
 
+    // Detect if running on Netlify (cloud) vs local
+    const isNetlify = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
     // Check if user is logged in
     if (!token || !username) {
         window.location.href = 'signup.html';
@@ -119,6 +122,11 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Render a Virtual Machine / Terminal card
     function renderVMCard() {
+        // Skip VM card on Netlify (cloud can't access local VMs)
+        if (isNetlify) {
+            return;
+        }
+
         const appsGrid = document.querySelector('.apps-grid');
         if (!appsGrid) return;
         if (document.getElementById('vmCard')) return; // Don't duplicate
