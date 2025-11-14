@@ -80,14 +80,16 @@
       startBtn.addEventListener('click', async () => {
         startBtn.disabled = true;
         try {
-          const offerSnap = await offerRef.get();
-          if (!offerSnap.exists()) {
-            alert('Viewer has not created an offer yet. Open the Screen Share on your dashboard first to generate the QR.');
+          // compat API: use once('value') to read snapshot
+          const offerSnap = await offerRef.once('value');
+          if (!offerSnap || !offerSnap.exists()) {
+            alert('Viewer has not created an offer yet. Open the Screen Share on your dashboard first to generate the share link.');
             startBtn.disabled = false;
             return;
           }
 
-          const offer = JSON.parse(offerSnap.val());
+          const val = offerSnap.val();
+          const offer = typeof val === 'string' ? JSON.parse(val) : val;
 
           pc = new RTCPeerConnection(pcConfig);
 
@@ -112,11 +114,12 @@
           await pc.setLocalDescription(answer);
 
           await answerRef.set(JSON.stringify(pc.localDescription));
+          console.log('Answer written to DB');
 
           // listen for caller ICE candidates
           callerCandidatesRef.on('child_added', (snap) => {
             const val = snap.val();
-            try { const cand = JSON.parse(val); pc.addIceCandidate(cand); } catch (e) { console.warn(e); }
+            try { const cand = typeof val === 'string' ? JSON.parse(val) : val; pc.addIceCandidate(cand); } catch (e) { console.warn(e); }
           });
 
           stopBtn.style.display = 'inline-block';
