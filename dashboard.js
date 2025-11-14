@@ -148,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             <p class="app-status">Open virtual machine in popup</p>
             <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;justify-content:center;">
                 <button id="openVMBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;">Open VM</button>
+                <button id="openTermBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#2d3748;border:1px solid #1f2937;">Terminal</button>
                 <button id="requestAdminBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#ff9800;border:1px solid #e67e22;" title="Request server to restart with Admin privileges">🔐 Request Admin</button>
             </div>
         `;
@@ -180,12 +181,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <div class="app-icon" style="font-size:40px">🖥️</div>
                 <h3>Virtual Terminal</h3>
                 <p class="app-status">Run commands in a web-based terminal</p>
-                <button id="openVMBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;">Launch Terminal</button>
+                <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
+                    <button id="openVMBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;">Launch VM</button>
+                    <button id="openTermBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#2d3748;border:1px solid #1f2937;">Terminal</button>
+                </div>
             `;
 
             appsGrid.insertBefore(div, appsGrid.children[1] || appsGrid.firstChild);
             const btn = document.getElementById('openVMBtn');
             if (btn) btn.addEventListener('click', () => { try{ openVMTerminal(); }catch(e){console.error(e);} });
+            const termBtn = document.getElementById('openTermBtn');
+            if (termBtn) termBtn.addEventListener('click', () => {
+                const features = 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
+                const win = window.open('/windows11-terminal.html', '_blank', features);
+                try { if (win) win.focus(); } catch(e){}
+            });
         } catch (e) {
             console.error('createVMCardIfMissing error', e);
         }

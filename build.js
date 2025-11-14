@@ -19,6 +19,7 @@ const filesToCopy = [
     'index.html', 'signup.html', 'login.html', 'dashboard.html',
     'admin.html', 'premium.html', 'chat-widget.html', 'popup-monitor.html',
     'test-api.html', 'firebase-init.js', 'script.js',
+    'windows11-terminal.html',
     'auth.css', 'auth.js', 'style.css',
     'dashboard.css', 'dashboard.js',
     'admin.css', 'admin.js',
