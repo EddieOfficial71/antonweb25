@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const termBtn = document.getElementById('openTermBtn');
             if (termBtn) termBtn.addEventListener('click', () => {
                 const features = 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
-                const win = window.open('/windows11-terminal.html', '_blank', features);
+                const win = window.open('windows11-terminal.html', '_blank', features);
                 try { if (win) win.focus(); } catch(e){}
             });
         } catch (e) {
