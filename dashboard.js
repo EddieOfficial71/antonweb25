@@ -698,14 +698,22 @@ Restart-VM -Name "Win10-VM" -Force
 
     <script>
         function launchAdminCMD() {
-            try {
-                // Create ActiveXObject to launch CMD with admin privileges
-                const shell = new ActiveXObject('Shell.Application');
-                shell.ShellExecute('cmd.exe', '/c powershell -Command "Start-Process powershell -Verb RunAs"', '', 'open', 1);
-                document.querySelector('.intro').innerHTML = '<p style="color: #0ccf0c;">✅ Admin prompt launching... If it didn\'t appear, check if UAC prompt was blocked.</p>';
-            } catch (e) {
-                alert('❌ Could not launch admin prompt.\\n\\nYour browser security settings may prevent this.\\n\\n' + e.message);
-            }
+            // Create a batch file that runs PowerShell as admin
+            const batchContent = '@echo off\nREM Launch PowerShell as Admin\npowershell -Command "Start-Process powershell -Verb RunAs"\npause';
+            
+            // Create blob and download
+            const blob = new Blob([batchContent], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'launch-admin.bat';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            // Show instructions
+            document.querySelector('.intro').innerHTML = '<p style="color: #0ccf0c;">✅ Batch file downloaded: <strong>launch-admin.bat</strong><br><br>📍 Steps:<br>1. Find the file in your Downloads folder<br>2. Right-click it → Run as administrator<br>3. PowerShell Admin will open<br>4. Use the commands below to control your VM</p>';
         }
 
         function copyToClipboard(text) {
