@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             statusEl.style.fontSize = '12px';
             statusEl.style.color = '#9ca3af';
             statusEl.style.marginTop = '8px';
-            const parent = qrEl && qrEl.parentElement;
+            const parent = linkEl && linkEl.parentElement;
             if (parent) parent.appendChild(statusEl);
         }
         statusEl.textContent = 'Preparing connection...';
