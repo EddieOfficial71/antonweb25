@@ -13,6 +13,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
+    // Listen for messages from search popup about premium requirements
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'showPremiumModal') {
+            showPremiumRequiredModal(event.data.query);
+        }
+    });
+
     // Display username
     document.getElementById('username').textContent = `Welcome, ${username}!`;
 
@@ -277,6 +284,81 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
+    // Check if a search query matches a restricted app
+    function isRestrictedApp(query) {
+        if (!query) return false;
+        const q = query.toLowerCase().trim();
+        const restrictedDomains = [
+            'chatgpt', 'chat.openai', 'openai',
+            'geforce', 'geforcenow', 'nvidia',
+            'tiktok',
+            'instagram',
+            'snapchat', 'snap',
+            'discord',
+            'twitch',
+            'youtube',
+            'roblox',
+            'minecraft',
+            'fortnite',
+            'valorant',
+            'twitter', 'x.com',
+            'reddit',
+            'spotify',
+            'netflix',
+            'steam', 'steampowered',
+            'epicgames', 'epic',
+            'among-us', 'amongus',
+            'pinterest',
+            'wattpad',
+            'deviantart'
+        ];
+        return restrictedDomains.some(domain => q.includes(domain));
+    }
+
+    // Show premium required modal
+    function showPremiumRequiredModal(query) {
+        let modal = document.getElementById('premiumRequiredModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'premiumRequiredModal';
+            modal.style.position = 'fixed';
+            modal.style.left = '0';
+            modal.style.top = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.background = 'rgba(0,0,0,0.5)';
+            modal.style.zIndex = '100001';
+
+            modal.innerHTML = `
+                <div style="background:#fff;padding:28px;border-radius:12px;max-width:520px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,0.3);font-family:inherit;text-align:center;">
+                    <h2 style="margin-top:0;color:#333;">🔒 Premium Access Required</h2>
+                    <p style="color:#666;font-size:16px;margin:16px 0;">Searching for <strong id="restrictedAppName"></strong> requires Premium access.</p>
+                    <p style="color:#888;font-size:14px;margin-bottom:24px;">Upgrade to Premium to unlock access to all apps and unlimited searches.</p>
+                    <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap;">
+                        <button id="prUpgradeBtn" style="background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);color:#fff;border:none;padding:12px 24px;border-radius:6px;cursor:pointer;font-weight:700;font-size:16px;">Upgrade to Premium</button>
+                        <button id="prCancelBtn" style="background:transparent;border:2px solid #ccc;padding:10px 22px;border-radius:6px;cursor:pointer;font-weight:600;">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            document.getElementById('prUpgradeBtn').addEventListener('click', () => {
+                window.location.href = 'premium.html';
+            });
+
+            document.getElementById('prCancelBtn').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+
+        document.getElementById('restrictedAppName').textContent = query;
+        modal.style.display = 'flex';
+    }
+
     // Open a popup with a simple search UI (about:blank). Returns true if opened.
     function openSearchPopupWindow() {
         const features = 'width=1000,height=700,menubar=no,toolbar=no,location=yes,resizable=yes,scrollbars=yes';
@@ -287,7 +369,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             const doc = popup.document;
             doc.open();
-            doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>about:blank</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:18px;background:#f6f7fb} .container{max-width:920px;margin:24px auto;background:#fff;padding:18px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.08)} input{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:16px} button{margin-top:10px;padding:10px 14px;border-radius:6px;background:#0b66c3;color:#fff;border:none;cursor:pointer} .small{font-size:13px;color:#666;margin-top:8px}</style></head><body><div class="container"><h2 style="margin-top:0">Search Google</h2><form id="gform"><input id="ginput" type="search" placeholder="Type your search and press Enter" autocomplete="off" /><div style="display:flex;gap:8px;margin-top:10px"><button id="gsearch" type="submit">Search</button><button id="gclose" type="button" style="background:#6c757d">Close</button></div><p class="small">Search results will open in this window.</p></form></div><script> (function(){ var form=document.getElementById('gform'); var input=document.getElementById('ginput'); var btn=document.getElementById('gsearch'); var closeBtn=document.getElementById('gclose'); form.addEventListener('submit',function(e){ e.preventDefault(); var q=input.value.trim(); if(!q) return; var url='https://www.google.com/search?q='+encodeURIComponent(q); window.location.href=url; }); closeBtn.addEventListener('click',function(){ try{ window.close(); }catch(e){} }); input.focus(); })(); <\/script></body></html>`);
+            const isPremium = localStorage.getItem('isPremium') === 'true';
+            doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>about:blank</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:18px;background:#f6f7fb} .container{max-width:920px;margin:24px auto;background:#fff;padding:18px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.08)} input{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:16px} button{margin-top:10px;padding:10px 14px;border-radius:6px;background:#0b66c3;color:#fff;border:none;cursor:pointer} .small{font-size:13px;color:#666;margin-top:8px}</style></head><body><div class="container"><h2 style="margin-top:0">Search Google</h2><form id="gform"><input id="ginput" type="search" placeholder="Type your search and press Enter" autocomplete="off" /><div style="display:flex;gap:8px;margin-top:10px"><button id="gsearch" type="submit">Search</button><button id="gclose" type="button" style="background:#6c757d">Close</button></div><p class="small">Search results will open in this window.</p></form></div><script> (function(){ var isPremium=${isPremium}; var form=document.getElementById('gform'); var input=document.getElementById('ginput'); var btn=document.getElementById('gsearch'); var closeBtn=document.getElementById('gclose'); var restrictedDomains=['chatgpt','chat.openai','openai','geforce','geforcenow','nvidia','tiktok','instagram','snapchat','snap','discord','twitch','youtube','roblox','minecraft','fortnite','valorant','twitter','x.com','reddit','spotify','netflix','steam','steampowered','epicgames','epic','among-us','amongus','pinterest','wattpad','deviantart']; function isRestrictedApp(q){return restrictedDomains.some(d=>q.toLowerCase().includes(d));} form.addEventListener('submit',function(e){ e.preventDefault(); var q=input.value.trim(); if(!q) return; if(!isPremium && isRestrictedApp(q)){window.parent.postMessage({type:'showPremiumModal',query:q},'*');return;} var url='https://www.google.com/search?q='+encodeURIComponent(q); window.location.href=url; }); closeBtn.addEventListener('click',function(){ try{ window.close(); }catch(e){} }); input.focus(); })(); <\/script></body></html>`);
             doc.close();
             try { popup.focus(); } catch (e) {}
             return true;
