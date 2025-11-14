@@ -712,7 +712,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const data = await response.json();
                 updateUI(data);
             } catch (e) {
-                document.getElementById('status').innerHTML = 'Error checking status';
+                document.getElementById('status').innerHTML = 'Error checking status: ' + e.message;
                 console.error(e);
             }
         }
@@ -772,14 +772,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         // Check status when popup opens
-        window.onload = checkStatus;
-    </script>
+        setTimeout(checkStatus, 500);
+    <\/script>
 </body>
 </html>`);
             doc.close();
+            try { popup.focus(); } catch (e) {}
         } catch (e) {
             console.error('Error creating VM popup', e);
-            popup.document.write('<h1>Error creating VM interface</h1><p>' + e.message + '</p>');
+            try {
+                popup.document.write('<h1>Error</h1><p>Failed to create VM panel: ' + e.message + '</p>');
+                popup.document.close();
+            } catch (e2) {}
         }
     }
 
