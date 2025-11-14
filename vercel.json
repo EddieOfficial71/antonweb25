@@ -1,7 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Deploying to Vercel...'",
-  "outputDirectory": "public",
   "env": {
     "NODE_ENV": "production"
   },
