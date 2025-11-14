@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "echo 'Build successful'",
+    "build": "node build.js",
     "verify": "echo 'Verification passed'",
     "test": "node verify-deployment.js"
   },
