@@ -582,11 +582,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             popup = window.open('about:blank', 'vm_window', features);
         } catch (e) {
+            console.error('VM popup error:', e);
             popup = null;
         }
 
         if (!popup) {
-            alert('Could not open VM popup. Please check your popup blocker settings.');
+            console.error('Popup blocker detected or popup window failed to open');
+            alert('❌ Could not open VM popup.\n\nPopup blockers may be preventing this.\n\nPlease:\n1. Check if a popup notification appeared in your browser\n2. Click it and allow popups for this site\n3. Try again');
             return;
         }
 
