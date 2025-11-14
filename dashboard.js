@@ -149,6 +149,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;justify-content:center;">
                 <button id="openVMBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;">Open VM</button>
                 <button id="openTermBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#2d3748;border:1px solid #1f2937;">Terminal</button>
+                <button id="startScreenShareBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#10b981;border:1px solid #059669;">📺 Screen Share</button>
                 <button id="requestAdminBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#ff9800;border:1px solid #e67e22;" title="Request server to restart with Admin privileges">🔐 Request Admin</button>
             </div>
         `;
@@ -157,6 +158,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         document.getElementById('openVMBtn').addEventListener('click', () => {
             openVMPopup();
+        });
+        const shareBtn = document.getElementById('startScreenShareBtn');
+        if (shareBtn) shareBtn.addEventListener('click', () => {
+            startScreenShareViewer();
         });
         const adminBtn = document.getElementById('requestAdminBtn');
         if (adminBtn) {
@@ -181,9 +186,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <div class="app-icon" style="font-size:40px">🖥️</div>
                 <h3>Virtual Terminal</h3>
                 <p class="app-status">Run commands in a web-based terminal</p>
-                <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
+                <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;flex-wrap:wrap;">
                     <button id="openVMBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;">Launch VM</button>
                     <button id="openTermBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#2d3748;border:1px solid #1f2937;">Terminal</button>
+                    <button id="startScreenShareBtn" class="btn-app" style="padding:8px 12px;border-radius:6px;background:#10b981;border:1px solid #059669;">📺 Screen Share</button>
                 </div>
             `;
 
@@ -197,6 +203,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const win = window.open(terminalUrl, '_blank', features);
                 try { if (win) win.focus(); } catch(e){}
             });
+            const shareBtn = document.getElementById('startScreenShareBtn');
+            if (shareBtn) shareBtn.addEventListener('click', () => { startScreenShareViewer(); });
+
+            
         } catch (e) {
             console.error('createVMCardIfMissing error', e);
         }
@@ -228,6 +238,156 @@ document.addEventListener('DOMContentLoaded', async function() {
         wattpad: 'https://www.wattpad.com/',
         deviantart: 'https://www.deviantart.com/'
     };
+
+    // Firebase config used for signaling (Realtime Database)
+    const firebaseConfig = {
+        apiKey: "AIzaSyC6ZFOhBH5KanGpNpqZ96SGjvybnDeO3ac",
+        authDomain: "anton-871fe.firebaseapp.com",
+        projectId: "anton-871fe",
+        storageBucket: "anton-871fe.firebasestorage.app",
+        messagingSenderId: "211150176132",
+        appId: "1:211150176132:web:cfb3826f503f7c579a67d1",
+        measurementId: "G-12E3XL9TM5"
+    };
+
+    // Dynamically load Firebase compat scripts (app + database)
+    function loadFirebase() {
+        return new Promise((resolve, reject) => {
+            if (window.firebase && window.firebase.database) return resolve();
+            const s1 = document.createElement('script');
+            s1.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js';
+            s1.onload = () => {
+                const s2 = document.createElement('script');
+                s2.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js';
+                s2.onload = () => {
+                    try {
+                        if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                    } catch (e) { console.warn('firebase init failed', e); }
+                    resolve();
+                };
+                s2.onerror = reject;
+                document.head.appendChild(s2);
+            };
+            s1.onerror = reject;
+            document.head.appendChild(s1);
+        });
+    }
+
+    // Top-level Screen Share viewer: shows QR + live preview and uses Firebase Realtime DB for signaling
+    async function startScreenShareViewer() {
+        // create modal
+        let modal = document.getElementById('screenShareModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'screenShareModal';
+            modal.style.position = 'fixed';
+            modal.style.left = '0';
+            modal.style.top = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.background = 'rgba(0,0,0,0.6)';
+            modal.style.zIndex = '100002';
+
+            modal.innerHTML = `
+                <div style="background:#0b1220;padding:18px;border-radius:10px;max-width:920px;width:96%;color:#fff;display:flex;gap:12px;align-items:flex-start;">
+                    <div style="flex:0 0 260px;text-align:center">
+                        <h3 style="margin:0 0 8px 0">Scan to Share</h3>
+                        <img id="ss_qr" src="" alt="QR" style="width:220px;height:220px;border-radius:8px;background:#fff;padding:6px" />
+                        <p style="font-size:12px;color:#cbd5e1;margin-top:8px">Open the link on your device and start screen sharing.</p>
+                        <div style="margin-top:8px"><button id="ss_close" style="padding:8px 12px;border-radius:6px;background:#ef4444;border:none;color:#fff;cursor:pointer">Close</button></div>
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+                        <h3 style="margin:0">Live Preview</h3>
+                        <video id="ss_video" autoplay playsinline style="width:100%;height:420px;background:#000;border-radius:6px;object-fit:contain"></video>
+                        <div style="display:flex;gap:8px;justify-content:flex-end"><button id="ss_stop" style="padding:8px 12px;border-radius:6px;background:#ef4444;border:none;color:#fff;cursor:pointer">Stop</button></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('ss_close').addEventListener('click', () => {
+                cleanup();
+                modal.style.display = 'none';
+            });
+            document.getElementById('ss_stop').addEventListener('click', () => {
+                cleanup();
+                modal.style.display = 'none';
+            });
+        }
+
+        modal.style.display = 'flex';
+
+        // ensure Firebase SDK loaded
+        await loadFirebase();
+
+        const roomId = generateRoomId();
+        const broadcastUrl = new URL('screenshare-share.html?room=' + encodeURIComponent(roomId), window.location.href).href;
+
+        // QR via Google Chart API (simple)
+        const qrSrc = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' + encodeURIComponent(broadcastUrl);
+        document.getElementById('ss_qr').src = qrSrc;
+
+        // Setup Realtime DB room references
+        const db = firebase.database();
+        const roomRef = db.ref('screenshare/' + roomId);
+        const offerRef = roomRef.child('offer');
+        const answerRef = roomRef.child('answer');
+        const callerCandidatesRef = roomRef.child('callerCandidates');
+        const calleeCandidatesRef = roomRef.child('calleeCandidates');
+
+        const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const pc = new RTCPeerConnection(pcConfig);
+
+        const videoEl = document.getElementById('ss_video');
+
+        pc.ontrack = (event) => {
+            try { videoEl.srcObject = event.streams[0]; } catch (e) { console.warn(e); }
+        };
+
+        // ICE candidates: push to DB
+        pc.onicecandidate = (event) => {
+            if (!event.candidate) return;
+            callerCandidatesRef.push(JSON.stringify(event.candidate));
+        };
+
+        // create data channel (optional)
+        try { pc.createDataChannel('messaging'); } catch (e) {}
+
+        // Create offer
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        // write offer to DB
+        await offerRef.set(JSON.stringify(offer));
+
+        // listen for answer
+        answerRef.on('value', async (snap) => {
+            const val = snap.val();
+            if (!val) return;
+            try {
+                const answer = JSON.parse(val);
+                await pc.setRemoteDescription(answer);
+            } catch (e) { console.error('setRemoteDescription error', e); }
+        });
+
+        // listen for callee ICE candidates
+        calleeCandidatesRef.on('child_added', (snap) => {
+            const val = snap.val();
+            try { const cand = JSON.parse(val); pc.addIceCandidate(cand); } catch (e) {}
+        });
+
+        function cleanup() {
+            try { pc.close(); } catch (e) {}
+            try { callerCandidatesRef.remove(); calleeCandidatesRef.remove(); offerRef.remove(); answerRef.remove(); roomRef.remove(); } catch (e) {}
+        }
+
+        function generateRoomId() {
+            return 'r_' + Math.random().toString(36).slice(2, 9);
+        }
+    }
 
     // Remote VM configuration (can be set per-user via localStorage)
     // To set a default remote VM endpoint, set localStorage.setItem('REMOTE_VM_URL', 'https://your.remote-vm.example');

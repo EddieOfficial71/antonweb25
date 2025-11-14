@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Screen Share - Broadcaster</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;background:#0b1220;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0} .box{background:#0f1724;padding:20px;border-radius:10px;max-width:720px;width:94%;text-align:center} button{padding:10px 14px;border-radius:8px;border:none;cursor:pointer}</style>
+</head>
+<body>
+  <div class="box">
+    <h2>Screen Share - Start Sharing</h2>
+    <p id="roomInfo" style="color:#cbd5e1"></p>
+    <video id="localPreview" autoplay playsinline style="width:100%;height:360px;background:#000;border-radius:8px;object-fit:cover;margin-top:8px"></video>
+    <div style="margin-top:12px">
+      <button id="startBtn" style="background:#10b981;color:#fff">Start Sharing</button>
+      <button id="stopBtn" style="background:#ef4444;color:#fff;display:none">Stop</button>
+    </div>
+    <p style="font-size:12px;color:#9ca3af;margin-top:8px">This page connects to the viewer using Firebase Realtime Database for signaling.</p>
+  </div>
+
+  <script>
+    // Firebase config - reuse project's config
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6ZFOhBH5KanGpNpqZ96SGjvybnDeO3ac",
+      authDomain: "anton-871fe.firebaseapp.com",
+      projectId: "anton-871fe",
+      storageBucket: "anton-871fe.firebasestorage.app",
+      messagingSenderId: "211150176132",
+      appId: "1:211150176132:web:cfb3826f503f7c579a67d1",
+      measurementId: "G-12E3XL9TM5"
+    };
+
+    function loadFirebaseScripts() {
+      return new Promise((resolve, reject) => {
+        if (window.firebase && window.firebase.database) return resolve();
+        const s1 = document.createElement('script');
+        s1.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js';
+        s1.onload = () => {
+          const s2 = document.createElement('script');
+          s2.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js';
+          s2.onload = resolve;
+          s2.onerror = reject;
+          document.head.appendChild(s2);
+        };
+        s1.onerror = reject;
+        document.head.appendChild(s1);
+      });
+    }
+
+    (async function(){
+      await loadFirebaseScripts();
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const room = urlParams.get('room');
+      const roomInfo = document.getElementById('roomInfo');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const localPreview = document.getElementById('localPreview');
+
+      if (!room) {
+        roomInfo.textContent = 'Missing room id in URL.';
+        startBtn.disabled = true;
+        return;
+      }
+
+      roomInfo.textContent = 'Room: ' + room;
+
+      const db = firebase.database();
+      const roomRef = db.ref('screenshare/' + room);
+      const offerRef = roomRef.child('offer');
+      const answerRef = roomRef.child('answer');
+      const callerCandidatesRef = roomRef.child('callerCandidates');
+      const calleeCandidatesRef = roomRef.child('calleeCandidates');
+
+      const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      let pc;
+      let localStream;
+
+      startBtn.addEventListener('click', async () => {
+        startBtn.disabled = true;
+        try {
+          const offerSnap = await offerRef.get();
+          if (!offerSnap.exists()) {
+            alert('Viewer has not created an offer yet. Open the Screen Share on your dashboard first to generate the QR.');
+            startBtn.disabled = false;
+            return;
+          }
+
+          const offer = JSON.parse(offerSnap.val());
+
+          pc = new RTCPeerConnection(pcConfig);
+
+          pc.onicecandidate = (event) => {
+            if (!event.candidate) return;
+            calleeCandidatesRef.push(JSON.stringify(event.candidate));
+          };
+
+          pc.onconnectionstatechange = () => {
+            console.log('pc state', pc.connectionState);
+          };
+
+          // get display media
+          localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          localPreview.srcObject = localStream;
+
+          // add tracks
+          localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+          await pc.setRemoteDescription(offer);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          await answerRef.set(JSON.stringify(pc.localDescription));
+
+          // listen for caller ICE candidates
+          callerCandidatesRef.on('child_added', (snap) => {
+            const val = snap.val();
+            try { const cand = JSON.parse(val); pc.addIceCandidate(cand); } catch (e) { console.warn(e); }
+          });
+
+          stopBtn.style.display = 'inline-block';
+        } catch (e) {
+          console.error(e);
+          alert('Error starting screen share: ' + (e.message || e));
+          startBtn.disabled = false;
+        }
+      });
+
+      stopBtn.addEventListener('click', async () => {
+        try {
+          if (localStream) localStream.getTracks().forEach(t => t.stop());
+          if (pc) pc.close();
+          // remove db entries
+          try { callerCandidatesRef.remove(); calleeCandidatesRef.remove(); offerRef.remove(); answerRef.remove(); roomRef.remove(); } catch (e) {}
+        } catch (e) { console.warn(e); }
+        startBtn.disabled = false;
+        stopBtn.style.display = 'none';
+      });
+
+    })();
+  </script>
+</body>
+</html>
