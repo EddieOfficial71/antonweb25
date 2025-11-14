@@ -576,203 +576,161 @@ document.addEventListener('DOMContentLoaded', async function() {
     setInterval(updateAppAccess, 5000);
  // Open a Virtual Terminal in a popup
     function openVMPopup() {
-        // Open the VM in a new Chrome popup tab
-        const features = 'width=1200,height=700,menubar=yes,toolbar=yes,location=yes,status=yes,resizable=yes,scrollbars=yes';
+        // Request admin prompt to launch command for VM control
+        const features = 'width=900,height=600,menubar=yes,toolbar=yes,location=yes,status=yes,resizable=yes,scrollbars=yes';
         let popup = null;
         try {
             popup = window.open('about:blank', 'vm_window', features);
         } catch (e) {
-            console.error('VM popup error:', e);
             popup = null;
         }
 
         if (!popup) {
-            console.error('Popup blocker detected or popup window failed to open');
-            alert('❌ Could not open VM popup.\n\nPopup blockers may be preventing this.\n\nPlease:\n1. Check if a popup notification appeared in your browser\n2. Click it and allow popups for this site\n3. Try again');
+            alert('❌ Could not open popup.\n\nPlease allow popups for this site.');
             return;
         }
 
         try {
             const doc = popup.document;
-            const token = localStorage.getItem('token');
-            const username = localStorage.getItem('username');
-            
             doc.open();
             doc.write(`<!doctype html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VM Control Panel</title>
+    <title>Admin Command Prompt - VM Control</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: #0c0c0c;
+            color: #0ccf0c;
             padding: 20px;
+            min-height: 100vh;
         }
         .container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            max-width: 600px;
-            width: 100%;
-            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            border: 2px solid #0ccf0c;
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(12, 207, 12, 0.3);
         }
-        h1 { color: #333; margin-bottom: 10px; text-align: center; }
-        .status { 
-            text-align: center; 
-            margin: 20px 0; 
-            padding: 15px; 
-            border-radius: 8px;
-            background: #f5f5f5;
-            font-weight: 500;
-        }
-        .status.running { background: #d4edda; color: #155724; }
-        .status.stopped { background: #f8d7da; color: #721c24; }
-        .buttons {
+        h1 { color: #0ccf0c; margin-bottom: 10px; font-size: 20px; }
+        .intro { color: #aaaaaa; margin-bottom: 20px; line-height: 1.6; font-size: 14px; }
+        .button-group {
             display: flex;
             gap: 10px;
-            margin: 30px 0;
+            margin: 20px 0;
             flex-wrap: wrap;
-            justify-content: center;
         }
         button {
-            flex: 1;
-            min-width: 120px;
             padding: 12px 20px;
-            font-size: 16px;
+            background: #0ccf0c;
+            color: #000;
             border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .btn-start { background: #28a745; color: white; }
-        .btn-start:hover:not(:disabled) { background: #218838; }
-        .btn-stop { background: #dc3545; color: white; }
-        .btn-stop:hover:not(:disabled) { background: #c82333; }
-        .btn-refresh { background: #007bff; color: white; }
-        .btn-refresh:hover:not(:disabled) { background: #0056b3; }
-        .info {
-            background: #e7f3ff;
-            border-left: 4px solid #007bff;
-            padding: 15px;
             border-radius: 4px;
-            margin: 20px 0;
+            cursor: pointer;
+            font-weight: bold;
             font-size: 14px;
-            color: #333;
+            transition: all 0.2s;
+            font-family: 'Consolas', monospace;
         }
-        .loading { text-align: center; color: #666; }
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-right: 8px;
+        button:hover {
+            background: #0aa00a;
+            box-shadow: 0 0 10px rgba(12, 207, 12, 0.5);
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .code-block {
+            background: #0c0c0c;
+            border: 1px solid #0ccf0c;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #0ccf0c;
+            overflow-x: auto;
+        }
+        .step { margin: 15px 0; color: #0ccf0c; }
+        .step-title { font-weight: bold; color: #ffff00; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🖥️ Virtual Machine Control</h1>
-        <div class="status" id="status">Checking status...</div>
-        <div class="buttons">
-            <button class="btn-start" id="startBtn" onclick="startVM()">Start VM</button>
-            <button class="btn-stop" id="stopBtn" onclick="stopVM()" disabled>Stop VM</button>
-            <button class="btn-refresh" id="refreshBtn" onclick="checkStatus()">Refresh Status</button>
+        <h1>🖥️ VM Control - Admin Command Prompt</h1>
+        <div class="intro">
+            <p>This will open an <strong>Administrator Command Prompt</strong> where you can manage your Hyper-V Virtual Machine.</p>
+            <p>Click the button below to launch the admin prompt.</p>
         </div>
-        <div class="info">
-            <strong>VM Name:</strong> Win10-VM<br>
-            <strong>Status:</strong> Check using the Refresh button above
+
+        <div class="button-group">
+            <button onclick="launchAdminCMD()">▶️ Launch Admin Command Prompt</button>
         </div>
-        <div id="message" style="margin-top: 20px; padding: 10px; text-align: center;"></div>
+
+        <div class="step">
+            <div class="step-title">📋 Common VM Commands:</div>
+            <div class="code-block">
+# Start VM<br>
+Start-VM -Name "Win10-VM"<br><br>
+# Stop VM<br>
+Stop-VM -Name "Win10-VM" -Force<br><br>
+# Check VM Status<br>
+Get-VM -Name "Win10-VM" | Format-List<br><br>
+# List all VMs<br>
+Get-VM<br><br>
+# Restart VM<br>
+Restart-VM -Name "Win10-VM" -Force
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-title">ℹ️ Note:</div>
+            <p>The admin prompt will open. Paste any of the commands above to control your VM. You can also copy commands from here.</p>
+        </div>
+
+        <div class="button-group">
+            <button onclick="copyToClipboard('Start-VM -Name \\"Win10-VM\\"')">📋 Copy: Start VM</button>
+            <button onclick="copyToClipboard('Stop-VM -Name \\"Win10-VM\\" -Force')">📋 Copy: Stop VM</button>
+            <button onclick="copyToClipboard('Get-VM -Name \\"Win10-VM\\" | Format-List')">📋 Copy: Check Status</button>
+        </div>
     </div>
 
     <script>
-        const token = '${token}';
-        const username = '${username}';
-
-        async function checkStatus() {
-            document.getElementById('status').innerHTML = '<div class="loading"><span class="spinner"></span> Checking status...</div>';
+        function launchAdminCMD() {
             try {
-                const response = await fetch('/api/vm/status', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                const data = await response.json();
-                updateUI(data);
+                // Create ActiveXObject to launch CMD with admin privileges
+                const shell = new ActiveXObject('Shell.Application');
+                shell.ShellExecute('cmd.exe', '/c powershell -Command "Start-Process powershell -Verb RunAs"', '', 'open', 1);
+                document.querySelector('.intro').innerHTML = '<p style="color: #0ccf0c;">✅ Admin prompt launching... If it didn\'t appear, check if UAC prompt was blocked.</p>';
             } catch (e) {
-                document.getElementById('status').innerHTML = 'Error checking status: ' + e.message;
-                console.error(e);
+                alert('❌ Could not launch admin prompt.\\n\\nYour browser security settings may prevent this.\\n\\n' + e.message);
             }
         }
 
-        async function startVM() {
-            document.getElementById('status').innerHTML = '<div class="loading"><span class="spinner"></span> Starting VM...</div>';
-            try {
-                const response = await fetch('/api/vm/start', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + token }
+        function copyToClipboard(text) {
+            // Modern clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('✅ Copied: ' + text);
+                }).catch(err => {
+                    // Fallback
+                    oldCopy(text);
                 });
-                const data = await response.json();
-                if (response.ok) {
-                    document.getElementById('message').innerHTML = '✅ VM is starting...';
-                    setTimeout(checkStatus, 2000);
-                } else {
-                    document.getElementById('message').innerHTML = '❌ ' + (data.message || 'Failed to start VM');
-                }
-            } catch (e) {
-                document.getElementById('message').innerHTML = '❌ Error: ' + e.message;
-            }
-        }
-
-        async function stopVM() {
-            if (!confirm('Are you sure you want to stop the VM?')) return;
-            document.getElementById('status').innerHTML = '<div class="loading"><span class="spinner"></span> Stopping VM...</div>';
-            try {
-                const response = await fetch('/api/vm/stop', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    document.getElementById('message').innerHTML = '✅ VM is stopping...';
-                    setTimeout(checkStatus, 2000);
-                } else {
-                    document.getElementById('message').innerHTML = '❌ ' + (data.message || 'Failed to stop VM');
-                }
-            } catch (e) {
-                document.getElementById('message').innerHTML = '❌ Error: ' + e.message;
-            }
-        }
-
-        function updateUI(data) {
-            const isRunning = data.running;
-            document.getElementById('startBtn').disabled = isRunning;
-            document.getElementById('stopBtn').disabled = !isRunning;
-            
-            const statusDiv = document.getElementById('status');
-            if (isRunning) {
-                statusDiv.className = 'status running';
-                statusDiv.textContent = '✅ VM is RUNNING';
             } else {
-                statusDiv.className = 'status stopped';
-                statusDiv.textContent = '⏹️ VM is STOPPED';
+                oldCopy(text);
             }
         }
 
-        // Check status when popup opens
-        setTimeout(checkStatus, 500);
+        function oldCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('✅ Copied: ' + text);
+        }
     <\/script>
 </body>
 </html>`);
