@@ -217,46 +217,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         url: localStorage.getItem('REMOTE_VM_URL') || ''
     };
 
-    // Render all app cards from APP_URLS
+    // Render app cards - only Google Search and VM (no other apps)
     function renderAppCards(isPremium) {
-        const appsGrid = document.querySelector('.apps-grid');
-        if (!appsGrid) return;
-
-        const appIcons = {
-            chatgpt: '🤖', geforce: '🎮', tiktok: '📱', instagram: '📷', snapchat: '👻',
-            discord: '💬', twitch: '📺', youtube: '📹', roblox: '🎲', minecraft: '⛏️',
-            fortnite: '🎯', valorant: '🔫', twitter: '𝕏', reddit: '🔴', spotify: '🎵',
-            netflix: '🎬', steam: '🎮', epicgames: '🎮', 'discord-nitro': '💎', 'among-us': '👨‍🚀',
-            pinterest: '📌', wattpad: '📖', deviantart: '🎨'
-        };
-
-        Object.entries(APP_URLS).forEach(([appKey, appUrl]) => {
-            if (document.getElementById(`app-${appKey}`)) return; // Don't duplicate
-
-            const div = document.createElement('div');
-            div.className = 'app-card';
-            if (!isPremium) div.classList.add('locked');
-            div.id = `app-${appKey}`;
-            div.dataset.app = appKey;
-            div.style.cssText = 'display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;min-width:260px;';
-
-            const displayName = appKey.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            const icon = appIcons[appKey] || '📱';
-            const locked = !isPremium ? '<p style="color:#ff6b6b;font-size:12px;">Premium only</p>' : '';
-
-            div.innerHTML = `
-                <div class="app-icon" style="font-size:40px">${icon}</div>
-                <h3 style="margin:8px 0;">${displayName}</h3>
-                <p class="app-status" style="font-size:13px;color:#666;">Open app</p>
-                ${locked}
-                <button class="btn-app" style="padding:8px 12px;border-radius:6px;margin-top:8px;">Open</button>
-            `;
-
-            appsGrid.appendChild(div);
-        });
-
-        // Re-attach handlers for newly created app cards
-        attachAppButtons();
+        // Intentionally empty - only Search and VM cards are rendered
+        // All other apps are hidden
     }
 
     // Attach click handlers for all .btn-app elements
