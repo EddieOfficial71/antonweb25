@@ -531,10 +531,206 @@ document.addEventListener('DOMContentLoaded', async function() {
     function openVMPopup() {
         // Open the VM in a new Chrome popup tab
         const features = 'width=1200,height=700,menubar=yes,toolbar=yes,location=yes,status=yes,resizable=yes,scrollbars=yes';
+        let popup = null;
         try {
-            window.open('about:blank?vm=true', 'vm_window', features);
+            popup = window.open('about:blank', 'vm_window', features);
         } catch (e) {
+            popup = null;
+        }
+
+        if (!popup) {
             alert('Could not open VM popup. Please check your popup blocker settings.');
+            return;
+        }
+
+        try {
+            const doc = popup.document;
+            const token = localStorage.getItem('token');
+            const username = localStorage.getItem('username');
+            
+            doc.open();
+            doc.write(`<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VM Control Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 { color: #333; margin-bottom: 10px; text-align: center; }
+        .status { 
+            text-align: center; 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-radius: 8px;
+            background: #f5f5f5;
+            font-weight: 500;
+        }
+        .status.running { background: #d4edda; color: #155724; }
+        .status.stopped { background: #f8d7da; color: #721c24; }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-start { background: #28a745; color: white; }
+        .btn-start:hover:not(:disabled) { background: #218838; }
+        .btn-stop { background: #dc3545; color: white; }
+        .btn-stop:hover:not(:disabled) { background: #c82333; }
+        .btn-refresh { background: #007bff; color: white; }
+        .btn-refresh:hover:not(:disabled) { background: #0056b3; }
+        .info {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .loading { text-align: center; color: #666; }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ Virtual Machine Control</h1>
+        <div class="status" id="status">Checking status...</div>
+        <div class="buttons">
+            <button class="btn-start" id="startBtn" onclick="startVM()">Start VM</button>
+            <button class="btn-stop" id="stopBtn" onclick="stopVM()" disabled>Stop VM</button>
+            <button class="btn-refresh" id="refreshBtn" onclick="checkStatus()">Refresh Status</button>
+        </div>
+        <div class="info">
+            <strong>VM Name:</strong> Win10-VM<br>
+            <strong>Status:</strong> Check using the Refresh button above
+        </div>
+        <div id="message" style="margin-top: 20px; padding: 10px; text-align: center;"></div>
+    </div>
+
+    <script>
+        const token = '${token}';
+        const username = '${username}';
+
+        async function checkStatus() {
+            document.getElementById('status').innerHTML = '<div class="loading"><span class="spinner"></span> Checking status...</div>';
+            try {
+                const response = await fetch('/api/vm/status', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await response.json();
+                updateUI(data);
+            } catch (e) {
+                document.getElementById('status').innerHTML = 'Error checking status';
+                console.error(e);
+            }
+        }
+
+        async function startVM() {
+            document.getElementById('status').innerHTML = '<div class="loading"><span class="spinner"></span> Starting VM...</div>';
+            try {
+                const response = await fetch('/api/vm/start', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('message').innerHTML = '✅ VM is starting...';
+                    setTimeout(checkStatus, 2000);
+                } else {
+                    document.getElementById('message').innerHTML = '❌ ' + (data.message || 'Failed to start VM');
+                }
+            } catch (e) {
+                document.getElementById('message').innerHTML = '❌ Error: ' + e.message;
+            }
+        }
+
+        async function stopVM() {
+            if (!confirm('Are you sure you want to stop the VM?')) return;
+            document.getElementById('status').innerHTML = '<div class="loading"><span class="spinner"></span> Stopping VM...</div>';
+            try {
+                const response = await fetch('/api/vm/stop', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('message').innerHTML = '✅ VM is stopping...';
+                    setTimeout(checkStatus, 2000);
+                } else {
+                    document.getElementById('message').innerHTML = '❌ ' + (data.message || 'Failed to stop VM');
+                }
+            } catch (e) {
+                document.getElementById('message').innerHTML = '❌ Error: ' + e.message;
+            }
+        }
+
+        function updateUI(data) {
+            const isRunning = data.running;
+            document.getElementById('startBtn').disabled = isRunning;
+            document.getElementById('stopBtn').disabled = !isRunning;
+            
+            const statusDiv = document.getElementById('status');
+            if (isRunning) {
+                statusDiv.className = 'status running';
+                statusDiv.textContent = '✅ VM is RUNNING';
+            } else {
+                statusDiv.className = 'status stopped';
+                statusDiv.textContent = '⏹️ VM is STOPPED';
+            }
+        }
+
+        // Check status when popup opens
+        window.onload = checkStatus;
+    </script>
+</body>
+</html>`);
+            doc.close();
+        } catch (e) {
+            console.error('Error creating VM popup', e);
+            popup.document.write('<h1>Error creating VM interface</h1><p>' + e.message + '</p>');
         }
     }
 
