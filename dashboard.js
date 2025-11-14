@@ -293,11 +293,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             modal.innerHTML = `
                 <div style="background:#0b1220;padding:18px;border-radius:10px;max-width:920px;width:96%;color:#fff;display:flex;gap:12px;align-items:flex-start;">
-                    <div style="flex:0 0 260px;text-align:center">
-                        <h3 style="margin:0 0 8px 0">Scan to Share</h3>
-                        <img id="ss_qr" src="" alt="QR" style="width:220px;height:220px;border-radius:8px;background:#fff;padding:6px" />
-                        <p style="font-size:12px;color:#cbd5e1;margin-top:8px">Open the link on your device and start screen sharing.</p>
-                        <div style="margin-top:8px"><button id="ss_close" style="padding:8px 12px;border-radius:6px;background:#ef4444;border:none;color:#fff;cursor:pointer">Close</button></div>
+                    <div style="flex:0 0 320px;text-align:left">
+                        <h3 style="margin:0 0 8px 0">Share Link</h3>
+                        <p id="ss_hint" style="font-size:13px;color:#cbd5e1;margin-bottom:8px">Open this link on the device you want to share from, then tap "Start Sharing".</p>
+                        <div style="background:#0f1724;padding:8px;border-radius:8px;border:1px solid #1f2937;word-break:break-all;">
+                            <a id="ss_link" href="#" target="_blank" style="color:#60a5fa;text-decoration:underline;">Open share link</a>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:8px;">
+                            <button id="ss_copy" style="padding:8px 10px;border-radius:6px;background:#2563eb;border:none;color:#fff;cursor:pointer">Copy link</button>
+                            <button id="ss_close" style="padding:8px 10px;border-radius:6px;background:#ef4444;border:none;color:#fff;cursor:pointer">Close</button>
+                        </div>
                     </div>
                     <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
                         <h3 style="margin:0">Live Preview</h3>
@@ -323,9 +328,25 @@ document.addEventListener('DOMContentLoaded', async function() {
         // generate room and QR immediately so the image shows even if Firebase load is slow/blocked
         const roomId = generateRoomId();
         const broadcastUrl = new URL('screenshare-share.html?room=' + encodeURIComponent(roomId), window.location.href).href;
-        const qrSrc = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' + encodeURIComponent(broadcastUrl);
-        const qrEl = document.getElementById('ss_qr');
-        if (qrEl) qrEl.src = qrSrc;
+        const linkEl = document.getElementById('ss_link');
+        if (linkEl) {
+            linkEl.href = broadcastUrl;
+            linkEl.textContent = broadcastUrl;
+        }
+
+        const copyBtn = document.getElementById('ss_copy');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(broadcastUrl);
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyBtn.textContent = 'Copy link'; }, 2000);
+                } catch (e) {
+                    console.warn('copy failed', e);
+                    const promptFallback = window.prompt('Copy this link manually:', broadcastUrl);
+                }
+            });
+        }
 
         // small status line for feedback
         let statusEl = document.getElementById('ss_status');
