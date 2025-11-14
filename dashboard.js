@@ -320,15 +320,34 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         modal.style.display = 'flex';
 
-        // ensure Firebase SDK loaded
-        await loadFirebase();
-
+        // generate room and QR immediately so the image shows even if Firebase load is slow/blocked
         const roomId = generateRoomId();
         const broadcastUrl = new URL('screenshare-share.html?room=' + encodeURIComponent(roomId), window.location.href).href;
-
-        // QR via Google Chart API (simple)
         const qrSrc = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' + encodeURIComponent(broadcastUrl);
-        document.getElementById('ss_qr').src = qrSrc;
+        const qrEl = document.getElementById('ss_qr');
+        if (qrEl) qrEl.src = qrSrc;
+
+        // small status line for feedback
+        let statusEl = document.getElementById('ss_status');
+        if (!statusEl) {
+            statusEl = document.createElement('div');
+            statusEl.id = 'ss_status';
+            statusEl.style.fontSize = '12px';
+            statusEl.style.color = '#9ca3af';
+            statusEl.style.marginTop = '8px';
+            const parent = qrEl && qrEl.parentElement;
+            if (parent) parent.appendChild(statusEl);
+        }
+        statusEl.textContent = 'Preparing connection...';
+
+        // ensure Firebase SDK loaded (do not block QR display)
+        try {
+            await loadFirebase();
+        } catch (e) {
+            console.warn('Firebase load failed:', e);
+            if (statusEl) statusEl.textContent = 'Firebase load failed — QR available. Connect may fail.';
+            // continue so user can still see QR and attempt to connect
+        }
 
         // Setup Realtime DB room references
         const db = firebase.database();
