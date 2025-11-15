@@ -48,6 +48,12 @@
       });
     }
 
+    // status logging helper
+    function logStatus(msg) {
+      const status = document.getElementById('status');
+      if (status) status.textContent = msg;
+    }
+
     (async function(){
       await loadFirebaseScripts();
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -80,11 +86,23 @@
 
       startBtn.addEventListener('click', async () => {
         startBtn.disabled = true;
+        logStatus('Requesting screen selection...');
         try {
-          // compat API: use once('value') to read snapshot
+          // Step 1: Prompt for screen selection
+          localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          localPreview.srcObject = localStream;
+          logStatus('Screen selected. Connecting to viewer...');
+        } catch (e) {
+          logStatus('Screen selection cancelled or failed.');
+          startBtn.disabled = false;
+          return;
+        }
+
+        try {
+          logStatus('Checking for viewer offer...');
           const offerSnap = await offerRef.once('value');
           if (!offerSnap || !offerSnap.exists()) {
-            alert('Viewer has not created an offer yet. Open the Screen Share on your dashboard first to generate the share link.');
+            logStatus('Viewer has not created an offer yet. Open the Screen Share on your dashboard first to generate the share link.');
             startBtn.disabled = false;
             return;
           }
@@ -100,12 +118,8 @@
           };
 
           pc.onconnectionstatechange = () => {
-            console.log('pc state', pc.connectionState);
+            logStatus('Connection state: ' + pc.connectionState);
           };
-
-          // get display media
-          localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-          localPreview.srcObject = localStream;
 
           // add tracks
           localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
@@ -115,21 +129,21 @@
           await pc.setLocalDescription(answer);
 
           await answerRef.set(JSON.stringify(pc.localDescription));
-          console.log('Answer written to DB');
+          logStatus('Answer sent. Waiting for connection...');
 
           // listen for caller ICE candidates
           callerCandidatesRef.on('child_added', (snap) => {
             const val = snap.val();
-            try { const cand = typeof val === 'string' ? JSON.parse(val) : val; pc.addIceCandidate(cand); } catch (e) { console.warn(e); }
+            try { const cand = typeof val === 'string' ? JSON.parse(val) : val; pc.addIceCandidate(cand); } catch (e) { logStatus('ICE candidate error: ' + e); }
           });
 
           stopBtn.style.display = 'inline-block';
         } catch (e) {
-          console.error(e);
-          alert('Error starting screen share: ' + (e.message || e));
+          logStatus('Error starting screen share: ' + (e.message || e));
           startBtn.disabled = false;
         }
       });
+          // ...existing code...
 
       stopBtn.addEventListener('click', async () => {
         try {
